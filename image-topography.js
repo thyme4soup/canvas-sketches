@@ -1,9 +1,9 @@
 
-import canvasSketch from 'canvas-sketch';
-import load from 'load-asset';
-import * as d3 from 'd3-contour';
-import { renderPolylines } from 'canvas-sketch-util/penplot';
-import { clipPolylinesToBox } from 'canvas-sketch-util/geometry';
+const canvasSketch = require('canvas-sketch');
+const load = require('load-asset');
+const d3 = require('d3-contour');
+const { renderPolylines } = require('canvas-sketch-util/penplot');
+const { clipPolylinesToBox } = require('canvas-sketch-util/geometry');
 
 const image_uri = 'assets/apple.jpg';
 
