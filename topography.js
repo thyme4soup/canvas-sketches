@@ -89,7 +89,7 @@ const sketch = ({ width, height, units, render }) => {
     for(let y = 0; y < height; y+=height/height_) {
         let col = [];
         for(let x = 0; x < width; x+=width/width_) {
-            col.push(gen_noise(y, x));
+            col.push(gen_noise(x, y));
         }
         grid.push(col);
     }
