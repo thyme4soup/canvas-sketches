@@ -3,6 +3,7 @@ const { renderPolylines } = require('canvas-sketch-util/penplot');
 const { clipPolylinesToBox } = require('canvas-sketch-util/geometry');
 const { polylinesToSVG } = require('canvas-sketch-util/penplot');
 
+// drawing settings, tune rrt params if this changes!
 const settings = {
     dimensions: 'A4',
     orientation: 'portrait',
@@ -13,16 +14,19 @@ const settings = {
 
 const debug = false;
 
+// construct for our tree, this will be updated as we iterate
 const rrt = {
+    // state storage
     points: [],
     edges: new Map(),
     frontier: [],
+    // params
     dist_limit: 0.3,
     neighborhood: 0.4,
-    iter_limit: 1500,
-    costs: new Map(),
+    iter_limit: 1500
 };
 
+// *****helper functions******
 function arr_remove(arr, elt) {
     for( var i = 0; i < arr.length; i++){
         if ( arr[i] === elt) {
@@ -89,17 +93,24 @@ function map_to_edges(edge_map) {
     });
     return edges;
 }
+// *****end helper functions*****
 
+// an implementation of basic rrt, fast but won't converge to an optimal path.
 function rrt_iter() {
     if(rrt.iter_limit > 0 && rrt.frontier.length > 0) {
+        // generate a point
         let dest = rrt.frontier[Math.floor(Math.random()*rrt.frontier.length)];
+        // find the nearest point to destination
         let near = closest(rrt.points, dest)
+        // pick a new point, within the distance limit, located on the way to the destination
         let pnew = closest_towards(near, dest, rrt.dist_limit, rrt.frontier)
 
+        // add the point we found with an edge to the nearest point in the tree
         rrt.points.push(pnew)
         rrt.edges.set(pnew, near)
         arr_remove(rrt.frontier, pnew)
 
+        // bookkeeping
         rrt.iter_limit = rrt.iter_limit - 1
         return true;
     }
@@ -107,6 +118,7 @@ function rrt_iter() {
         return false;
     }
 }
+// an implementation of rrt*, will converge to optimal paths but is more expensive
 function rrt_star_iter() {
     if(rrt.iter_limit > 0 && rrt.frontier.length > 0) {
         let dest = rrt.frontier[Math.floor(Math.random()*rrt.frontier.length)];
@@ -121,19 +133,19 @@ function rrt_star_iter() {
             }
         });
 
-        // get best candidate
+        // get best candidate out of list of neighbors
         let least_cost = neighbors[0];
         neighbors.forEach(neighbor => {
             if(cost(neighbor) + distance(neighbor, pnew) < cost(least_cost) + distance(least_cost, pnew)) {
                 least_cost = neighbor;
             }
         })
-        // add points
+        // add new point and edge to best neighbor
         rrt.points.push(pnew);
         rrt.edges.set(pnew, least_cost);
         arr_remove(rrt.frontier, pnew);
 
-        // recalculate neighborhood edges
+        // revise neighborhood edges if pnew is a better option for any of them
         neighbors.forEach(neighbor => {
             let cost_candidate = cost(pnew) + distance(neighbor, pnew);
             if(neighbor != rrt.edges.get(pnew) && cost_candidate < cost(neighbor)) {
@@ -141,6 +153,7 @@ function rrt_star_iter() {
             }
         });
 
+        // bookkeeping
         rrt.iter_limit = rrt.iter_limit - 1;
         return true;
     }
@@ -149,8 +162,9 @@ function rrt_star_iter() {
     }
 }
 
-//////////////
+// *****sketch setup and definition*****
 const sketch = ({ width, height, units, render }) => {
+    // set up sketch
     const resolution = 10;
     let width_;
     let height_;
@@ -170,14 +184,17 @@ const sketch = ({ width, height, units, render }) => {
         }
     }
     rrt.points.push([width/2, height/2])
-    rrt.costs.set(rrt.points[0], 0)
 
     let loop = setInterval(() => {
-      const remaining = integrate();
-      if (!remaining) return clearInterval(loop);
-      render();
-  }, 1000 / 30);
+        // call integrate (will iterate on our tree)
+        const remaining = integrate();
+        // if we've run out of iterations, end the loop
+        if (!remaining) return clearInterval(loop);
+        render();
+    // max framerate
+    }, 1000 / 30);
 
+    // define and return a rendering function
     return ({ context }) => {
         // Clear canvas
         context.clearRect(0, 0, width, height);
@@ -232,9 +249,12 @@ const sketch = ({ width, height, units, render }) => {
             }
         ];
     };
+    // the function called every loop, simply iterate on our tree
     function integrate () {
+        // pick which algo to use here!
         return rrt_star_iter();
     }
 };
 
+// start sketch
 canvasSketch(sketch, settings);
